@@ -7,9 +7,6 @@ export function calculateMonthlyPayment(amount, annualRate, termYears) {
     !Number.isFinite(principal) ||
     !Number.isFinite(rate) ||
     !Number.isFinite(years) ||
-    Number.isNaN(principal) ||
-    Number.isNaN(rate) ||
-    Number.isNaN(years) ||
     principal <= 0 ||
     years <= 0
   ) {
@@ -18,6 +15,7 @@ export function calculateMonthlyPayment(amount, annualRate, termYears) {
 
   const totalPayments = years * 12;
 
+  // Handle 0% interest case safely
   if (rate <= 0) {
     return principal / totalPayments;
   }
@@ -40,46 +38,57 @@ export function calculateMortgageStats({
   termYears,
   mortgageType,
   arrangementFee,
+  propertyValue,
 }) {
-  const parsedPrincipal = Number(principal);
-  const parsedRate = Number(annualRate);
-  const parsedYears = Number(termYears);
-  const parsedFee = Number(arrangementFee);
+  const basePrincipal = Number(principal) || 0;
+  const rate = Number(annualRate) || 0;
+  const years = Number(termYears) || 0;
+  const fee = Number(arrangementFee) || 0;
 
-  const basePrincipal = Number.isFinite(parsedPrincipal) && parsedPrincipal > 0 ? parsedPrincipal : 0;
-  const rate = Number.isFinite(parsedRate) && parsedRate >= 0 ? parsedRate : 0;
-  const years = Number.isFinite(parsedYears) && parsedYears > 0 ? parsedYears : 0;
-  const fee = Number.isFinite(parsedFee) && parsedFee > 0 ? parsedFee : 0;
   const safeYears = years > 0 ? years : 1;
+  const totalPayments = safeYears * 12;
+  
+  // Lloyds Logic: Fees are usually added to the loan balance
   const totalLoan = basePrincipal + fee;
 
+  const ltv = propertyValue > 0 ? ((totalLoan / propertyValue) * 100).toFixed(1) : null;
+
   let monthly = 0;
-  let totalPaid = 0;
   let totalInterest = 0;
+  let totalPaid = 0;
 
   if (mortgageType === 'interest') {
+    // 1. Calculate Monthly (Interest only)
     monthly = (totalLoan * (rate / 100)) / 12;
-    totalPaid = monthly * safeYears * 12 + totalLoan;
-    totalInterest = totalPaid - totalLoan;
+    
+    // 2. Total Interest over the whole term
+    totalInterest = monthly * totalPayments;
+    
+    // 3. Total Repaid = Total Interest + the Principal balloon payment at the end
+    totalPaid = totalInterest + totalLoan;
   } else {
+    // 1. Calculate Monthly (Capital + Interest)
     monthly = calculateMonthlyPayment(totalLoan, rate, safeYears);
-    totalPaid = monthly * safeYears * 12;
-    totalInterest = totalPaid - totalLoan;
+    
+    // 2. Total Repaid over the term
+    totalPaid = monthly * totalPayments;
+    
+    // 3. Total Interest
+    totalInterest = Math.max(0, totalPaid - totalLoan);
   }
 
-  monthly = Number.isFinite(monthly) && monthly >= 0 ? monthly : 0;
-  totalPaid = Number.isFinite(totalPaid) && totalPaid >= 0 ? totalPaid : 0;
-  totalInterest = Number.isFinite(totalInterest) && totalInterest >= 0 ? totalInterest : 0;
-
-  const principalPct = totalPaid > 0 ? Math.max(0, Math.min(100, Math.round((totalLoan / totalPaid) * 100))) : 0;
-  const interestPct = 100 - principalPct;
+  // 4. Unified Percentage Breakdown for the UI Chart
+  // This ensures BOTH mortgage types correctly reflect the total principal vs interest split.
+  const principalPct = totalPaid > 0 ? ((totalLoan / totalPaid) * 100).toFixed(1) : 0;
+  const interestPct = totalPaid > 0 ? ((totalInterest / totalPaid) * 100).toFixed(1) : 0;
 
   return {
-    monthly,
-    totalPaid,
-    totalInterest,
-    totalLoan,
+    monthly: Number.isFinite(monthly) ? monthly : 0,
+    totalPaid: Number.isFinite(totalPaid) ? totalPaid : 0,
+    totalInterest: Number.isFinite(totalInterest) ? totalInterest : 0,
+    totalLoan: totalLoan,
     principalPct,
     interestPct,
+    ltv,
   };
 }

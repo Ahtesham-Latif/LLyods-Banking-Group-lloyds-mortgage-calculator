@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { calculateMortgageStats } from './utils/finance';
+import ScenarioTable from './ScenarioTable';
 import './App.css';
 
 const FAQ_ITEMS = [
@@ -16,9 +17,22 @@ const FAQ_ITEMS = [
     a: 'Yes, spreading repayments over more years reduces the monthly amount, but you pay more in total interest. Compare different terms to see the trade-off.',
   },
   {
+    q: "What's the difference between fixed and adjustable rates?",
+    a: 'A fixed rate stays the same for the entire mortgage term, giving you predictable payments. An adjustable rate (ARM) starts at a set rate but can change periodically based on market conditions, meaning your payments may increase or decrease over time.',
+  },
+  {
     q: 'How accurate are these results?',
     a: 'This calculator provides a reliable estimate based on your inputs. Actual payments can vary depending on lender terms, rate type, and additional fees.',
   },
+];
+
+const SCENARIOS = [
+  { name: "Basic Mortgage", loan: 150000, rate: 3.5, term: 25, type: "repayment", value: 0 },
+  { name: "Large Loan", loan: 500000, rate: 4.2, term: 30, type: "repayment", value: 0 },
+  { name: "Shorter Term", loan: 200000, rate: 3.0, term: 15, type: "repayment", value: 0 },
+  { name: "High Interest Rate", loan: 120000, rate: 5.5, term: 20, type: "repayment", value: 0 },
+  { name: "Low Loan, Adjustable", loan: 75000, rate: 2.8, term: 10, type: "repayment", value: 0 },
+  { name: "Interest-Only", loan: 250000, rate: 4.0, term: 25, type: "interest", value: 0 },
 ];
 
 const LIMITS = {
@@ -97,14 +111,167 @@ function validateInputs({ loanAmount, loanTerm, interestRate, arrangeFee }) {
   };
 }
 
+// ─── PDF Export ──────────────────────────────────────────────────────────────
+async function exportToPDF({ result, loanAmount, loanTerm, interestRate, mortgageType, rateType, arrangeFee }) {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const green = [0, 106, 77];
+  const black = [26, 26, 46];
+  const grey = [107, 114, 128];
+  const lightGreen = [232, 245, 240];
+
+  // Header bar
+  doc.setFillColor(...green);
+  doc.rect(0, 0, 210, 32, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('Lloyds Bank', 16, 14);
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Mortgage Calculator — Results Summary', 16, 22);
+
+  const dateStr = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  });
+  doc.setFontSize(8.5);
+  doc.text(`Generated: ${dateStr}`, 16, 29);
+
+  // KPI box
+  doc.setFillColor(...lightGreen);
+  doc.roundedRect(16, 38, 178, 28, 4, 4, 'F');
+
+  doc.setTextColor(...grey);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('ESTIMATED MONTHLY PAYMENT', 24, 46);
+
+  doc.setTextColor(...green);
+  doc.setFontSize(26);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatCurrency(result.monthly), 24, 58);
+
+  doc.setTextColor(...grey);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  const noteText = `${loanTerm}-year ${mortgageType === 'interest' ? 'interest-only' : 'repayment'} at ${interestRate}% (${rateType} Rate)`;
+  doc.text(noteText, 105, 58);
+
+  // Inputs section
+  doc.setTextColor(...black);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Your Inputs', 16, 76);
+
+  doc.setDrawColor(...green);
+  doc.setLineWidth(0.4);
+  doc.line(16, 78, 194, 78);
+
+  const inputRows = [
+    ['Loan Amount', formatCurrency(loanAmount)],
+    ['Mortgage Type', mortgageType === 'interest' ? 'Interest-Only' : 'Repayment'],
+    ['Rate Type', rateType],
+    ['Loan Term', `${loanTerm} years`],
+    ['Annual Interest Rate', `${interestRate}%`],
+    ['Arrangement Fee', formatCurrency(arrangeFee)],
+  ];
+
+  let y = 86;
+  inputRows.forEach(([label, val], i) => {
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 250, 249);
+      doc.rect(16, y - 4, 178, 8, 'F');
+    }
+    doc.setTextColor(...grey);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(label, 20, y);
+    doc.setTextColor(...black);
+    doc.setFont('helvetica', 'bold');
+    doc.text(val, 120, y);
+    y += 10;
+  });
+
+  // Results section
+  y += 4;
+  doc.setTextColor(...black);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Calculation Results', 16, y);
+
+  y += 2;
+  doc.setDrawColor(...green);
+  doc.line(16, y, 194, y);
+
+  y += 8;
+  const resultRows = [
+    ['Total Amount Repaid', formatCurrency(result.totalPaid)],
+    ['Total Interest Paid', formatCurrency(result.totalInterest)],
+    ['Principal Portion', `${result.principalPct}%`],
+    ['Interest Portion', `${result.interestPct}%`],
+  ];
+
+  resultRows.forEach(([label, val], i) => {
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 250, 249);
+      doc.rect(16, y - 4, 178, 8, 'F');
+    }
+    doc.setTextColor(...grey);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(label, 20, y);
+    doc.setTextColor(...green);
+    doc.setFont('helvetica', 'bold');
+    doc.text(val, 120, y);
+    y += 10;
+  });
+
+  // Formula note
+  y += 6;
+  doc.setFillColor(...lightGreen);
+  doc.roundedRect(16, y, 178, 22, 3, 3, 'F');
+  doc.setTextColor(...grey);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Formula Used', 20, y + 7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(
+    'M = P[r(1+r)^n] / [(1+r)^n-1]  where P = principal, r = monthly rate, n = total payments',
+    20,
+    y + 14,
+  );
+
+  // Footer
+  doc.setFillColor(...green);
+  doc.rect(0, 277, 210, 20, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text(
+    'This is an estimate only. Actual payments may differ based on lender terms. Lloyds Bank Mortgage Calculator.',
+    16,
+    287,
+  );
+
+  doc.save(`lloyds-mortgage-${Date.now()}.pdf`);
+}
+
+// ─── App ─────────────────────────────────────────────────────────────────────
+
 function App() {
+  const [propertyValue, setPropertyValue] = useState(400000); // Initialize property value
   const [loanAmount, setLoanAmount] = useState(300000);
   const [mortgageType, setMortgageType] = useState('repayment');
+  const [rateType, setRateType] = useState('Fixed');
   const [loanTerm, setLoanTerm] = useState(25);
   const [interestRate, setInterestRate] = useState(4.5);
   const [arrangeFee, setArrangeFee] = useState(0);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [hasCalculated, setHasCalculated] = useState(false);
   const [result, setResult] = useState(null);
   const [openFaqIndex, setOpenFaqIndex] = useState(-1);
@@ -196,6 +363,7 @@ function App() {
         termYears: validated.values.loanTerm,
         mortgageType,
         arrangementFee: validated.values.arrangeFee,
+        propertyValue: propertyValue, // Pass propertyValue here
       });
 
       if (!Number.isFinite(stats.monthly) || stats.monthly < 0) {
@@ -209,6 +377,26 @@ function App() {
       setHasCalculated(true);
       setIsCalculating(false);
     }, 800);
+  };
+
+  const handleExport = async () => {
+    if (!result) return;
+    setIsExporting(true);
+    try {
+      await exportToPDF({
+        result,
+        loanAmount,
+        loanTerm,
+        interestRate,
+        mortgageType,
+        rateType,
+        arrangeFee,
+      });
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const displayRate = Number.isFinite(Number(interestRate)) ? Number(interestRate) : 0;
@@ -258,15 +446,45 @@ function App() {
             <div className="start-here">Start Here</div>
 
             <div className="section-title">Step 1 - Loan Details</div>
-
+            <div className="field-group">
+              <label className="field-label" htmlFor="propertyValue">
+                Property Value
+                <button className="tooltip-btn" tabIndex={-1} type="button">
+                  ?
+                  <span className="tooltip-text">
+                    The total market value or purchase price of the property. This is used to calculate your Loan-to-Value (LTV) ratio.
+                  </span>
+                </button>
+              </label>
+              <div className="input-wrapper">
+                <span className="input-prefix">{'\u00A3'}</span>
+                <input
+                  className={`field-input ${errors.propertyValue ? 'invalid' : ''}`}
+                  type="number"
+                  id="propertyValue"
+                  placeholder="e.g. 500000"
+                  value={propertyValue}
+                  aria-invalid={Boolean(errors.propertyValue)}
+                  onChange={(event) => {
+                    setPropertyValue(toNumber(event.target.value));
+                    clearFieldError('propertyValue');
+                    setHasCalculated(false);
+                  }}
+                />
+              </div>
+              {errors.propertyValue && (
+                <div className="field-error" style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  {errors.propertyValue}
+                </div>
+              )}
+            </div>
             <div className="field-group">
               <label className="field-label" htmlFor="loanAmount">
                 Loan Amount
                 <button className="tooltip-btn" tabIndex={-1} type="button">
                   ?
                   <span className="tooltip-text">
-                    The total amount you plan to borrow from the bank, not including your
-                    deposit.
+                    The total amount you plan to borrow from the bank, not including your deposit.
                   </span>
                 </button>
               </label>
@@ -298,8 +516,8 @@ function App() {
                 <button className="tooltip-btn" tabIndex={-1} type="button">
                   ?
                   <span className="tooltip-text">
-                    Repayment means principal plus interest. Interest-only means monthly
-                    interest payments with principal due at the end.
+                    Repayment means principal plus interest. Interest-only means monthly interest
+                    payments with principal due at the end.
                   </span>
                 </button>
               </label>
@@ -312,6 +530,41 @@ function App() {
                 <option value="repayment">Repayment</option>
                 <option value="interest">Interest-Only</option>
               </select>
+            </div>
+
+            <div className="field-group">
+              <label className="field-label">
+                Rate Type
+                <button className="tooltip-btn" tabIndex={-1} type="button">
+                  ?
+                  <span className="tooltip-text">
+                    Fixed rates stay the same for the full term. Adjustable rates can change based
+                    on market conditions after an initial period.
+                  </span>
+                </button>
+              </label>
+              <div className="rate-toggle-group" role="group" aria-label="Rate type">
+                <button
+                  type="button"
+                  className={`rate-toggle-btn ${rateType === 'Fixed' ? 'active' : ''}`}
+                  onClick={() => setRateType('Fixed')}
+                >
+                  Fixed Rate
+                </button>
+                <button
+                  type="button"
+                  className={`rate-toggle-btn ${rateType === 'Adjustable' ? 'active' : ''}`}
+                  onClick={() => setRateType('Adjustable')}
+                >
+                  Adjustable Rate
+                </button>
+              </div>
+              {rateType === 'Adjustable' && (
+                <div className="rate-type-note">
+                  ⚠ Adjustable Rate: Results show your initial fixed-rate period only. Payments
+                  may change when the rate resets based on market conditions.
+                </div>
+              )}
             </div>
 
             <div className="field-group">
@@ -450,8 +703,9 @@ function App() {
             </button>
           </div>
 
+          {/* ── Results Panel ── */}
           <div className="results-panel">
-            {!hasCalculated ? (
+            {!hasCalculated && (
               <div className="results-empty" id="emptyState">
                 <svg
                   width="64"
@@ -470,97 +724,123 @@ function App() {
                   Fill in your details and hit <strong>Calculate</strong>.
                 </p>
               </div>
-            ) : null}
+            )}
 
-            <div className={`result-block ${hasCalculated ? 'visible' : ''}`} id="resultBlock">
-              <div className="section-title">Step 3 - Your Results</div>
+            {hasCalculated && result && (
+              <div className="result-block visible" id="resultBlock">
+                <div className="section-title">Step 3 - Your Results</div>
 
-              <div className="result-kpi">
-                <div className="kpi-label">ESTIMATED MONTHLY PAYMENT</div>
-                <div className="kpi-value" id="resMonthly">
-                  {result ? formatCurrency(result.monthly) : '-'}
+                <div className="result-kpi">
+                  <div className="kpi-label" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    ESTIMATED MONTHLY PAYMENT
+                    {result.ltv && (
+                      <span style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', letterSpacing: 'normal' }}>
+                        LTV: {result.ltv}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="kpi-value" id="resMonthly">
+                    {formatCurrency(result.monthly)}
+                  </div>
+                  <div className="kpi-sub" id="resMonthlyNote">
+                    {loanTerm}-year {mortgageType === 'interest' ? 'interest-only' : 'repayment'} at{' '}
+                    {displayRate}% · {rateType} Rate
+                  </div>
                 </div>
-                <div className="kpi-sub" id="resMonthlyNote">
-                  {loanTerm}-year {mortgageType === 'interest' ? 'interest-only' : 'repayment'} at{' '}
-                  {displayRate}%
-                </div>
-              </div>
 
-              <div className="result-row">
-                <span className="rr-label">Total Amount Repaid</span>
-                <span className="rr-value" id="resTotal">
-                  {result ? formatCurrency(result.totalPaid) : '-'}
-                </span>
-              </div>
-              <div className="result-row">
-                <span className="rr-label">Total Interest Paid</span>
-                <span className="rr-value highlight" id="resInterest">
-                  {result ? formatCurrency(result.totalInterest) : '-'}
-                </span>
-              </div>
-              <div className="result-row">
-                <span className="rr-label">Loan Term</span>
-                <span className="rr-value" id="resTerm">
-                  {loanTerm} years
-                </span>
-              </div>
-              <div className="result-row">
-                <span className="rr-label">Interest Rate</span>
-                <span className="rr-value" id="resRate">
-                  {displayRate}% per annum
-                </span>
-              </div>
-
-              <div className="chart-area">
-                <div className="chart-title">Principal vs Interest Breakdown</div>
-                <div className="principal-caption">Principal portion</div>
-                <div className="amort-bar">
-                  <div
-                    className="amort-fill"
-                    id="amortFill"
-                    style={{ width: `${result ? result.principalPct : 0}%` }}
-                  />
-                </div>
-                <div className="percent-row">
-                  <span id="principalPct" className="principal-pct">
-                    Principal {result ? result.principalPct : 0}%
+                <div className="result-row">
+                  <span className="rr-label">Total Amount Repaid</span>
+                  <span className="rr-value" id="resTotal">
+                    {formatCurrency(result.totalPaid)}
                   </span>
-                  <span id="interestPct" className="interest-pct">
-                    Interest {result ? result.interestPct : 0}%
+                </div>
+                <div className="result-row">
+                  <span className="rr-label">Total Interest Paid</span>
+                  <span className="rr-value highlight" id="resInterest">
+                    {formatCurrency(result.totalInterest)}
+                  </span>
+                </div>
+                <div className="result-row">
+                  <span className="rr-label">Loan Term</span>
+                  <span className="rr-value" id="resTerm">
+                    {loanTerm} years
+                  </span>
+                </div>
+                <div className="result-row">
+                  <span className="rr-label">Interest Rate</span>
+                  <span className="rr-value" id="resRate">
+                    {displayRate}% per annum · {rateType}
                   </span>
                 </div>
 
-                <div className="donut-wrap donut-space">
-                  <canvas id="donut" ref={donutRef} width="110" height="110" />
-                  <div className="legend">
-                    <div className="legend-item">
-                      <div className="legend-dot principal-dot" />
-                      <span id="legendPrincipal">
-                        Principal - {result ? formatCurrency(result.totalLoan) : '\u00A30.00'}
-                      </span>
-                    </div>
-                    <div className="legend-item">
-                      <div className="legend-dot interest-dot" />
-                      <span id="legendInterest">
-                        Interest - {result ? formatCurrency(result.totalInterest) : '\u00A30.00'}
-                      </span>
+                <div className="chart-area">
+                  <div className="chart-title">Principal vs Interest Breakdown</div>
+                  <div className="principal-caption">Principal portion</div>
+                  <div className="amort-bar">
+                    <div
+                      className="amort-fill"
+                      id="amortFill"
+                      style={{ width: `${result.principalPct}%` }}
+                    />
+                  </div>
+                  <div className="percent-row">
+                    <span id="principalPct" className="principal-pct">
+                      Principal {result.principalPct}%
+                    </span>
+                    <span id="interestPct" className="interest-pct">
+                      Interest {result.interestPct}%
+                    </span>
+                  </div>
+
+                  <div className="donut-wrap donut-space">
+                    <canvas id="donut" ref={donutRef} width="110" height="110" />
+                    <div className="legend">
+                      <div className="legend-item">
+                        <div className="legend-dot principal-dot" />
+                        <span id="legendPrincipal">
+                          Principal - {formatCurrency(result.totalLoan)}
+                        </span>
+                      </div>
+                      <div className="legend-item">
+                        <div className="legend-dot interest-dot" />
+                        <span id="legendInterest">
+                          Interest - {formatCurrency(result.totalInterest)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <details className="explainer">
-                <summary>How is this calculated?</summary>
-                <p>
-                  Your monthly payment is derived from the standard mortgage amortisation
-                  formula: M = P[r(1+r)^n] / [(1+r)^n-1], where P is principal, r is monthly
-                  interest rate, and n is the number of monthly payments.
-                </p>
-              </details>
-            </div>
+                <details className="explainer">
+                  <summary>How is this calculated?</summary>
+                  <p>
+                    Your monthly payment is derived from the standard mortgage amortisation formula:
+                    M = P[r(1+r)^n] / [(1+r)^n-1], where P is principal, r is monthly interest
+                    rate, and n is the number of monthly payments.
+                  </p>
+                </details>
+
+                {/* ── PDF Export Button ── */}
+                <button
+                  type="button"
+                  className={`export-btn ${isExporting ? '' : ''}`}
+                  onClick={handleExport}
+                  disabled={isExporting}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 15V3m0 12-4-4m4 4 4-4" />
+                    <path d="M2 17v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2" />
+                  </svg>
+                  {isExporting ? 'Generating PDF...' : 'Download PDF Summary'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* ── Scenario Comparison Table ── */}
+      <ScenarioTable scenarios={SCENARIOS} />
 
       <section className="faq-section">
         <div className="faq-title">Frequently Asked Questions</div>
