@@ -1,42 +1,109 @@
-# Lloyds Mortgage Calculator
+# 🏠 Lloyds Mortgage Calculator
 
-A React-based mortgage calculator with a Lloyds-inspired green and black visual theme.
+A production-ready React application built to simulate professional financial systems. This project focuses on clean architecture, automated deployment pipelines, and modular logic separation.
 
-## Project Structure
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Azure](https://img.shields.io/badge/azure-%230072C6.svg?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/github%20actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white)
 
-- `public/index.html`: Root HTML shell.
-- `src/App.js`: Main container wiring state, calculation, and UI composition.
-- `src/App.css`: Theme tokens and responsive styling.
-- `src/components/Header.js`: Lloyds branding and page heading.
-- `src/components/Form.js`: Mortgage inputs (amount, rate, term).
-- `src/components/Results.js`: Monthly repayment display.
-- `src/utils/finance.js`: Mortgage repayment formula.
-- `src/index.js`: React app entry point.
+---
 
-## Calculation Logic
+## 🚀 Overview
 
-`calculateMonthlyPayment(amount, annualRate, termYears)` computes the monthly repayment:
+This application was developed as part of a **Technology Engineering Job Simulation** for **Lloyds Banking Group**.
 
-- Converts annual rate to monthly rate.
-- Applies standard amortization formula when interest > 0.
-- Falls back to simple principal split when interest is 0.
-- Returns `0` for invalid or non-positive inputs.
+It allows users to:
+- Estimate monthly mortgage payments  
+- Analyze total interest over time  
+- Compare multiple financial scenarios side-by-side  
 
-## Run Locally
+---
 
-```bash
-npm install
-npm start
-```
+## ✨ Key Features
 
-## Test
+- **Dynamic P&I Calculations**  
+  Real-time monthly payment and total interest computation  
 
-```bash
-npm test
-```
+- **Scenario Comparison**  
+  Side-by-side comparison of loan terms and interest rates  
 
-## Build
+- **Visual Analytics**  
+  Interactive charts for principal vs. interest breakdown  
 
-```bash
-npm run build
-```
+- **CI/CD Pipeline**  
+  Automated deployment to **Azure App Service** using GitHub Actions  
+
+---
+
+## 🏗️ Project Architecture
+
+The application follows a modular **three-layer architecture**:
+
+### 1. Deployment & Build Layer
+- GitHub Actions for CI/CD automation  
+- Production-ready build folder with optimized assets  
+
+### 2. Product Structure Layer
+- public/ → Contains index.html (entry point)  
+- src/ → Core application code:
+  - components/ → UI components  
+  - utils/ → Business & financial logic  
+  - styles/ → Styling files  
+- Dependencies managed via npm and package-lock.json  
+
+### 3. Core Logic Flow
+1. **User Input** → Captured through React form components  
+2. **Validation** → Input sanitization and checks  
+3. **Utility Logic (finance.js)** → Handles calculations  
+4. **State Management** → Managed in App.js  
+5. **UI Rendering** → React updates the DOM dynamically  
+
+---
+
+## 📊 Logic Flow Diagram
+
+    graph LR
+      A[User Input] --> B[Validation]
+      B --> C[Utility Logic]
+      C --> D[State Update]
+      D --> E[UI Rendering]
+
+---
+
+## 🛠️ Installation & Setup
+
+### Clone the Repository
+
+    git clone https://github.com/Ahtesham-Latif/Llyods-Banking-Group-lloyds-mortgage-calculator.git
+    cd Llyods-Banking-Group-lloyds-mortgage-calculator
+
+### Install Dependencies
+
+    npm install
+
+### Start Development Server
+
+    npm start
+
+### Run Tests
+
+    npm test
+
+---
+
+## 🚀 Deployment
+
+The application is automatically deployed using **GitHub Actions** to **Azure App Service** on every push to the main branch.
+
+---
+
+## 📄 License
+
+This project is open-source and available under the **MIT License**.
+
+---
+
+## 👨‍💻 Author
+
+**Ahtesham Latif**  
+Technology Engineering Job Simulation (Forage)
