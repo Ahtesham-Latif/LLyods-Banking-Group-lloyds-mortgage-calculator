@@ -1,109 +1,114 @@
 # 🏠 Lloyds Mortgage Calculator
 
-A production-ready React application built to simulate professional financial systems. This project focuses on clean architecture, automated deployment pipelines, and modular logic separation.
+A production-ready React application built to simulate professional financial systems. This project focuses on clean architecture, modular logic separation, input validation, data visualization, and automated deployment pipelines.
 
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![Azure](https://img.shields.io/badge/azure-%230072C6.svg?style=for-the-badge&logo=microsoftazure&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/github%20actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Azure](https://img.shields.io/badge/azure-%230072C6.svg?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
+[![GitHub Actions](https://img.shields.io/badge/github%20actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![jsPDF](https://img.shields.io/badge/jsPDF-Export-red?style=for-the-badge)](https://parall.ax/products/jspdf)
+
+> **⚠️ Deployment Notice:** Azure deployment is currently paused as the free tier limit has been reached. The CI/CD pipeline remains intact, and I am currently exploring free-tier alternatives (Railway, Render, Vercel) for redeployment. 
+
+**🔗 Live Demo:** [View Application (Currently Paused)](https://llyodbanking-mortgage-calculator-h0gmadcfh0bvb3eh.westeurope-01.azurewebsites.net/) 
+**📄 Certification:** [View Lloyds Banking Group Technology Engineering Job Simulation Certificate](docs/Lloyd-Banking-Group-Technology-Engineering-Job-Simulation.pdf)
+
+---
+  
+## 📸 Previews
+
+![Lloyds Mortgage Calculator UI](docs/UI.png)
 
 ---
 
 ## 🚀 Overview
 
-This application was developed as part of a **Technology Engineering Job Simulation** for **Lloyds Banking Group**.
+Developed as part of the **Lloyds Banking Group Technology Engineering Job Simulation** on Forage. This application models a real-world mortgage estimation tool with a focus on validated financial logic, visual data output, and PDF export — ensuring it functions as a reliable system, not just a UI exercise.
 
-It allows users to:
-- Estimate monthly mortgage payments  
-- Analyze total interest over time  
-- Compare multiple financial scenarios side-by-side  
+**Key User Features:**
+* Estimate monthly mortgage payments (repayment or interest-only).
+* Analyze total interest and principal breakdown over the loan term.
+* Compare multiple loan scenarios side-by-side.
+* Export a branded PDF summary of the mortgage estimate.
 
 ---
 
-## ✨ Key Features
+## ✨ Core Functionalities
 
-- **Dynamic P&I Calculations**  
-  Real-time monthly payment and total interest computation  
-
-- **Scenario Comparison**  
-  Side-by-side comparison of loan terms and interest rates  
-
-- **Visual Analytics**  
-  Interactive charts for principal vs. interest breakdown  
-
-- **CI/CD Pipeline**  
-  Automated deployment to **Azure App Service** using GitHub Actions  
+* **Form State Management & Input Handling:** Every input field is managed via React `useState`. A `toNumber` helper safely converts raw string inputs to numbers, preventing silent calculation errors.
+* **Input Validation:** A `validateInputs` function checks parsed values against a `LIMITS` constant for minimum and maximum bounds, dynamically driving UI error warnings.
+* **Calculation Processing:** Triggered by validation, sanitized inputs are passed to a `calculateMortgageStats` utility, simulating a network delay before revealing the output panel.
+* **Dynamic Data Visualization:** Uses the HTML5 `<canvas>` API via a `useEffect` hook to programmatically draw a donut chart reflecting the principal-to-interest ratio, paired with a dynamically sizing horizontal CSS bar.
+* **PDF Generation & Export:** Dynamically imports `jspdf` to programmatically draw colored rectangles, text, and lines at exact X/Y coordinates, producing a branded downloadable summary.
+* **Interactive UI Components:** Includes an index-controlled FAQ accordion, boolean-toggled advanced settings, and localized currency formatting (`Intl.NumberFormat`).
 
 ---
 
 ## 🏗️ Project Architecture
 
-The application follows a modular **three-layer architecture**:
+### Three-Layer Structure
 
-### 1. Deployment & Build Layer
-- GitHub Actions for CI/CD automation  
-- Production-ready build folder with optimized assets  
+**1. Deployment & Build Layer**
+* GitHub Actions CI/CD pipeline.
+* Configured to auto-deploy to Azure App Service (West Europe) on every push to `main`.
+* Optimized production build via `npm run build`.
 
-### 2. Product Structure Layer
-- public/ → Contains index.html (entry point)  
-- src/ → Core application code:
-  - components/ → UI components  
-  - utils/ → Business & financial logic  
-  - styles/ → Styling files  
-- Dependencies managed via npm and package-lock.json  
+**2. Product Structure Layer**
+```text
+public/         → index.html entry point
+src/
+  components/   → UI components
+  utils/        → Financial logic (calculateMortgageStats, validateInputs, formatCurrency)
+  styles/       → Styling files
+```
 
-### 3. Core Logic Flow
-1. **User Input** → Captured through React form components  
-2. **Validation** → Input sanitization and checks  
-3. **Utility Logic (finance.js)** → Handles calculations  
-4. **State Management** → Managed in App.js  
-5. **UI Rendering** → React updates the DOM dynamically  
-
----
-
-## 📊 Logic Flow Diagram
-
-    graph LR
-      A[User Input] --> B[Validation]
-      B --> C[Utility Logic]
-      C --> D[State Update]
-      D --> E[UI Rendering]
+**3. Core Logic Flow**
+```mermaid
+graph LR
+  A[User Input] --> B[validateInputs]
+  B --> C[calculateMortgageStats]
+  C --> D[result State]
+  D --> E[UI Rendering]
+  D --> F[Canvas Donut Chart]
+  D --> G[PDF Export]
+```
 
 ---
 
 ## 🛠️ Installation & Setup
 
-### Clone the Repository
+**Clone the Repository**
+```bash
+git clone [https://github.com/Ahtesham-Latif/LLyods-Banking-Group-lloyds-mortgage-calculator.git](https://github.com/Ahtesham-Latif/LLyods-Banking-Group-lloyds-mortgage-calculator.git)
+cd LLyods-Banking-Group-lloyds-mortgage-calculator
+```
 
-    git clone https://github.com/Ahtesham-Latif/Llyods-Banking-Group-lloyds-mortgage-calculator.git
-    cd Llyods-Banking-Group-lloyds-mortgage-calculator
+**Install Dependencies & Run**
+```bash
+npm install
+npm start
+```
 
-### Install Dependencies
-
-    npm install
-
-### Start Development Server
-
-    npm start
-
-### Run Tests
-
-    npm test
+**Run Tests**
+```bash
+npm test
+```
 
 ---
 
 ## 🚀 Deployment
 
-The application is automatically deployed using **GitHub Actions** to **Azure App Service** on every push to the main branch.
+The project is configured for automated deployment via **GitHub Actions** to **Azure App Service (West Europe)** on every push to the `main` branch. No manual deployment steps are required after merging.
 
 ---
 
 ## 📄 License
 
-This project is open-source and available under the **MIT License**.
+Open-source under the **MIT License**.
 
 ---
 
 ## 👨‍💻 Author
 
-**Ahtesham Latif**  
-Technology Engineering Job Simulation (Forage)
+**Ahtesham Latif**
+*Technology Engineering Job Simulation — Lloyds Banking Group (Forage)*
+[GitHub](https://github.com/Ahtesham-Latif) · [LinkedIn](https://www.linkedin.com/in/ahtesham-latif)
